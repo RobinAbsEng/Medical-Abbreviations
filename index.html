@@ -1,0 +1,412 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--font-sans);}
+#app{padding:1rem 0 2rem;max-width:680px;margin:0 auto;}
+.top-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:1rem;}
+.top-bar h2{font-size:15px;font-weight:500;color:var(--color-text-primary);flex:1;}
+select,button.btn{font-size:13px;padding:5px 10px;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);color:var(--color-text-primary);cursor:pointer;}
+button.btn:hover{background:var(--color-background-secondary);}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:1rem;}
+.stat{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:10px;text-align:center;}
+.stat-num{font-size:20px;font-weight:500;color:var(--color-text-primary);}
+.stat-lbl{font-size:11px;color:var(--color-text-secondary);margin-top:2px;}
+.progress-bar{height:4px;background:var(--color-background-secondary);border-radius:2px;margin-bottom:1rem;overflow:hidden;}
+.progress-fill{height:100%;background:#1D9E75;border-radius:2px;transition:width 0.3s;}
+.mode-tabs{display:flex;gap:6px;margin-bottom:1rem;}
+.tab{font-size:13px;padding:5px 14px;border-radius:100px;border:0.5px solid var(--color-border-secondary);background:transparent;color:var(--color-text-secondary);cursor:pointer;}
+.tab.active{background:var(--color-background-secondary);color:var(--color-text-primary);border-color:var(--color-border-primary);font-weight:500;}
+.card-wrap{perspective:1000px;height:220px;margin-bottom:1rem;cursor:pointer;}
+.card-inner{position:relative;width:100%;height:100%;transform-style:preserve-3d;transition:transform 0.4s ease;}
+.card-inner.flipped{transform:rotateY(180deg);}
+.card-face{position:absolute;width:100%;height:100%;backface-visibility:hidden;border-radius:var(--border-radius-lg);border:0.5px solid var(--color-border-tertiary);background:var(--color-background-primary);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1.5rem;}
+.card-back{transform:rotateY(180deg);}
+.card-abbrev{font-size:44px;font-weight:500;color:var(--color-text-primary);letter-spacing:-1px;text-align:center;}
+.card-hint{font-size:12px;color:var(--color-text-tertiary);margin-top:8px;}
+.card-tag{font-size:11px;padding:3px 10px;border-radius:100px;margin-bottom:14px;font-weight:500;}
+.tag-known{background:#E1F5EE;color:#0F6E56;}
+.tag-review{background:#FAECE7;color:#993C1D;}
+.tag-new{background:var(--color-background-secondary);color:var(--color-text-secondary);}
+.card-def{font-size:20px;font-weight:500;color:var(--color-text-primary);text-align:center;line-height:1.35;}
+.card-ab-small{font-size:13px;color:var(--color-text-secondary);margin-top:10px;}
+.controls{display:flex;gap:8px;justify-content:center;margin-bottom:1rem;flex-wrap:wrap;}
+.btn-got{border-color:#0F6E56;color:#0F6E56;background:#E1F5EE;}
+.btn-rev{border-color:#993C1D;color:#993C1D;background:#FAECE7;}
+.counter{font-size:13px;color:var(--color-text-secondary);text-align:center;margin-bottom:.75rem;}
+.quiz-q{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1.5rem;min-height:220px;}
+.quiz-abbrev{font-size:38px;font-weight:500;text-align:center;color:var(--color-text-primary);margin-bottom:.5rem;}
+.quiz-prompt{font-size:13px;color:var(--color-text-secondary);text-align:center;}
+.quiz-opts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:1rem;}
+.qopt{font-size:13px;padding:11px 12px;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-tertiary);background:var(--color-background-primary);color:var(--color-text-primary);cursor:pointer;text-align:left;line-height:1.3;}
+.qopt:hover:not(:disabled){background:var(--color-background-secondary);}
+.qopt.correct{background:#E1F5EE;border-color:#1D9E75;color:#0F6E56;}
+.qopt.wrong{background:#FAECE7;border-color:#D85A30;color:#993C1D;}
+.save-badge{font-size:11px;color:var(--color-text-tertiary);text-align:center;margin-bottom:.5rem;}
+.save-badge span{color:#1D9E75;}
+.filter-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:1rem;}
+.filter-row label{font-size:13px;color:var(--color-text-secondary);}
+@media(prefers-color-scheme:dark){
+  .tag-known{background:#085041;color:#9FE1CB;}
+  .tag-review{background:#4A1B0C;color:#F5C4B3;}
+  .btn-got{background:#085041;border-color:#1D9E75;color:#9FE1CB;}
+  .btn-rev{background:#4A1B0C;border-color:#D85A30;color:#F5C4B3;}
+  .qopt.correct{background:#085041;border-color:#1D9E75;color:#9FE1CB;}
+  .qopt.wrong{background:#4A1B0C;border-color:#D85A30;color:#F5C4B3;}
+}
+</style>
+
+<div id="app">
+  <div class="top-bar">
+    <h2>Medical abbreviations — 150 cards</h2>
+    <button class="btn" onclick="shuffleDeck()">Shuffle</button>
+    <button class="btn" onclick="resetProgress()">Reset progress</button>
+  </div>
+  <div class="save-badge" id="saveBadge">Progress: <span>loading...</span></div>
+  <div class="filter-row">
+    <label>Show:</label>
+    <select id="deckFilter" onchange="buildDeck()">
+      <option value="all">All 150 cards</option>
+      <option value="new">New only</option>
+      <option value="review">Needs review</option>
+      <option value="known">Known</option>
+    </select>
+  </div>
+  <div class="stats">
+    <div class="stat"><div class="stat-num" id="s-total">150</div><div class="stat-lbl">total</div></div>
+    <div class="stat"><div class="stat-num" id="s-new">0</div><div class="stat-lbl">new</div></div>
+    <div class="stat"><div class="stat-num" id="s-known" style="color:#1D9E75">0</div><div class="stat-lbl">known</div></div>
+    <div class="stat"><div class="stat-num" id="s-review" style="color:#D85A30">0</div><div class="stat-lbl">review</div></div>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="prog" style="width:0%"></div></div>
+  <div class="mode-tabs">
+    <button class="tab active" onclick="setMode('flash')">Flashcards</button>
+    <button class="tab" onclick="setMode('quiz')">Quiz mode</button>
+  </div>
+  <div class="counter" id="counter"></div>
+  <div id="flash-area">
+    <div class="card-wrap" onclick="flipCard()">
+      <div class="card-inner" id="cardInner">
+        <div class="card-face card-front">
+          <span class="card-tag" id="cardTag"></span>
+          <div class="card-abbrev" id="cardAbbrev">—</div>
+          <div class="card-hint">Tap to reveal definition</div>
+        </div>
+        <div class="card-face card-back">
+          <div class="card-def" id="cardDef"></div>
+          <div class="card-ab-small" id="cardAbSmall"></div>
+        </div>
+      </div>
+    </div>
+    <div class="controls" id="markControls" style="display:none">
+      <button class="btn btn-got" onclick="markCard('known')">✓ Known</button>
+      <button class="btn" onclick="markCard('skip')">Skip</button>
+      <button class="btn btn-rev" onclick="markCard('review')">✗ Review</button>
+    </div>
+    <div class="controls" id="navControls">
+      <button class="btn" onclick="prevCard()">← Prev</button>
+      <button class="btn" onclick="nextCard()">Next →</button>
+    </div>
+  </div>
+  <div id="quiz-area" style="display:none">
+    <div class="quiz-q">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+        <span class="card-tag" id="qTag"></span>
+        <span style="font-size:12px;color:var(--color-text-tertiary)" id="qScore"></span>
+      </div>
+      <div class="quiz-abbrev" id="qAbbrev"></div>
+      <div class="quiz-prompt">What does this abbreviation mean?</div>
+      <div class="quiz-opts" id="quizOpts"></div>
+    </div>
+    <div class="controls" style="margin-top:1rem;">
+      <button class="btn" id="qNext" style="display:none" onclick="nextQuiz()">Next →</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const CARDS = [
+  {a:"ADLs",d:"Activities of Daily Living"},
+  {a:"A&E / ED / ER",d:"Accident & Emergency, Emergency Department, or Emergency Room"},
+  {a:"AMS",d:"Altered Mental Status"},
+  {a:"A/P",d:"Assessment and Plan"},
+  {a:"BID",d:"Twice per day (bis in die)"},
+  {a:"BMI",d:"Body Mass Index"},
+  {a:"BMP",d:"Basic Metabolic Panel"},
+  {a:"BP",d:"Blood Pressure"},
+  {a:"BPM",d:"Beats per Minute"},
+  {a:"BS",d:"Bowel Sounds"},
+  {a:"BUN",d:"Blood Urea Nitrogen"},
+  {a:"CABG",d:"Coronary Artery Bypass Graft"},
+  {a:"CAD",d:"Coronary Artery Disease"},
+  {a:"C&S",d:"Culture and Sensitivity"},
+  {a:"C/O",d:"Complains of"},
+  {a:"COPD",d:"Chronic Obstructive Pulmonary Disease"},
+  {a:"CBC",d:"Complete Blood Count"},
+  {a:"CC",d:"Chief Complaint"},
+  {a:"CCE",d:"Clubbing, Cyanosis or Edema"},
+  {a:"Chemistry",d:"Blood test — may refer to BMP or CMP"},
+  {a:"Chem Panel",d:"Blood test — may refer to BMP or CMP"},
+  {a:"CKD",d:"Chronic Kidney Disease"},
+  {a:"CMP",d:"Complete Metabolic Panel"},
+  {a:"CNS",d:"Central Nervous System"},
+  {a:"Coags",d:"Blood tests (PT with INR and PTT) measuring blood clotting"},
+  {a:"CT",d:"Computerized Tomography"},
+  {a:"CVA",d:"Cerebrovascular Accident — stroke"},
+  {a:"CVD",d:"Cardiovascular Disease"},
+  {a:"CXR",d:"Chest X-Ray"},
+  {a:"D/C",d:"Discharge or Discontinue"},
+  {a:"D/Dx",d:"Differential Diagnosis"},
+  {a:"DOB",d:"Date of Birth"},
+  {a:"DOE",d:"Dyspnea on Exertion — shortness of breath with physical activity"},
+  {a:"DM",d:"Diabetes Mellitus"},
+  {a:"DMII",d:"Diabetes Mellitus Type II"},
+  {a:"DNR",d:"Do Not Resuscitate"},
+  {a:"DTR",d:"Deep Tendon Reflexes"},
+  {a:"DVT",d:"Deep Vein Thrombosis"},
+  {a:"Dx",d:"Diagnosis"},
+  {a:"ECG / EKG",d:"Electrocardiogram"},
+  {a:"ENT",d:"Ears, Nose & Throat"},
+  {a:"EOMI",d:"Extra-Ocular Eye Movements Intact"},
+  {a:"ESRD",d:"End Stage Renal Disease"},
+  {a:"ETOH",d:"Alcohol"},
+  {a:"ETT",d:"Endotracheal Tube"},
+  {a:"EXT",d:"Extremities — arms, hands, legs, feet"},
+  {a:"FX",d:"Fracture"},
+  {a:"F/U",d:"Follow-up"},
+  {a:"GERD / GORD",d:"Gastroesophageal / Gastro-oesophageal Reflux Disease"},
+  {a:"GI",d:"Gastrointestinal"},
+  {a:"GP / PCP",d:"General Practitioner or Primary Care Provider"},
+  {a:"GU",d:"Genito-urinary"},
+  {a:"H&H",d:"Hemoglobin and Hematocrit"},
+  {a:"H&P",d:"History and Physical"},
+  {a:"HCT",d:"Hematocrit"},
+  {a:"(C)HF",d:"(Congestive) Heart Failure"},
+  {a:"HGB",d:"Hemoglobin"},
+  {a:"HgBA1C / A1c",d:"Hemoglobin A1c — average blood glucose over ~3 months"},
+  {a:"HPI",d:"History of the Present Illness"},
+  {a:"HEENT",d:"Head, Ears, Eyes, Nose and Throat"},
+  {a:"HTN",d:"Hypertension — High Blood Pressure"},
+  {a:"Hx / h/o",d:"History or History of"},
+  {a:"ICU",d:"Intensive Care Unit"},
+  {a:"I&D",d:"Incision and Drainage"},
+  {a:"I&O",d:"Intake and Output"},
+  {a:"IM",d:"Intramuscular"},
+  {a:"IMP",d:"Impression"},
+  {a:"IV",d:"Intravenous"},
+  {a:"LBP",d:"Low Back Pain"},
+  {a:"LE",d:"Lower Extremity or Lower Extremities"},
+  {a:"LFTs",d:"Liver Function Tests"},
+  {a:"LMP",d:"Last Menstrual Period"},
+  {a:"LNMP",d:"Last Normal Menstrual Period"},
+  {a:"LOC",d:"Loss or Level of Consciousness"},
+  {a:"MI",d:"Myocardial Infarction — heart attack"},
+  {a:"MRI",d:"Magnetic Resonance Imaging"},
+  {a:"MS",d:"Mental Status or Multiple Sclerosis"},
+  {a:"ND",d:"Naso-duodenal — tube from nose to duodenum"},
+  {a:"Neuro",d:"Neurologic"},
+  {a:"NG",d:"Naso-gastric — tube from nose to stomach"},
+  {a:"NGT",d:"Naso-gastric Tube"},
+  {a:"NJ",d:"Naso-jejunal — tube from nose to jejunum"},
+  {a:"NKA / NKDA / NKFA",d:"No Known Allergies / No Known Drug Allergies / No Known Food Allergies"},
+  {a:"NPO",d:"Nothing by Mouth (nil per os)"},
+  {a:"NSS",d:"Normal Saline Solution"},
+  {a:"N/V/D",d:"Nausea, Vomiting, Diarrhea"},
+  {a:"NWB",d:"Non-Weight Bearing"},
+  {a:"OA",d:"Osteoarthritis"},
+  {a:"OOB",d:"Out of Bed"},
+  {a:"OT",d:"Occupational Therapy"},
+  {a:"OTC",d:"Over the Counter — non-prescription medication"},
+  {a:"P",d:"Pulse"},
+  {a:"pc",d:"After meals"},
+  {a:"PCN",d:"Penicillin"},
+  {a:"PE",d:"Physical Exam or Pulmonary Embolism"},
+  {a:"PCP",d:"Primary Care Provider"},
+  {a:"PERRLA",d:"Pupils Equal, Round and Reactive to Light and Accommodation"},
+  {a:"PLT",d:"Platelets"},
+  {a:"PMHx / PMH",d:"Past Medical History"},
+  {a:"PO",d:"To be taken by mouth / orally"},
+  {a:"PR",d:"Per rectum"},
+  {a:"PRN",d:"As needed (pro re nata)"},
+  {a:"PSHx / PSH",d:"Past Surgical History"},
+  {a:"Pt",d:"Patient"},
+  {a:"PT",d:"Prothrombin Time or Physical Therapy"},
+  {a:"PTA",d:"Prior to Admission"},
+  {a:"PT with INR",d:"Prothrombin Time with International Normalized Ratio — monitors blood thinners"},
+  {a:"PTT",d:"Partial Thromboplastin Time"},
+  {a:"PUD",d:"Peptic Ulcer Disease"},
+  {a:"PVD",d:"Peripheral Vascular Disease"},
+  {a:"Q / q",d:"Every — always used with a time indicator (e.g. q day, q 6h, QID)"},
+  {a:"qam",d:"Every morning"},
+  {a:"qhs",d:"Every night"},
+  {a:"RBC",d:"Red Blood Cell"},
+  {a:"RLQ",d:"Right Lower Quadrant (also RUQ, LLQ, LUQ — abdominal regions)"},
+  {a:"R/O",d:"Rule Out"},
+  {a:"RR",d:"Respiratory Rate"},
+  {a:"RRR",d:"Regular Rate and Rhythm"},
+  {a:"R/T",d:"Related To"},
+  {a:"SL",d:"Sub-lingual — under the tongue"},
+  {a:"SocHx / SH",d:"Social History"},
+  {a:"SOB",d:"Shortness of Breath"},
+  {a:"S/P",d:"Status post — after a procedure or event"},
+  {a:"SQ",d:"Subcutaneous — under the skin"},
+  {a:"S/S",d:"Signs and Symptoms"},
+  {a:"STAT",d:"Immediately"},
+  {a:"ST",d:"Speech Therapy"},
+  {a:"STI",d:"Sexually Transmitted Infection"},
+  {a:"Sx",d:"Symptoms"},
+  {a:"T",d:"Temperature"},
+  {a:"TIA",d:"Transient Ischemic Attack — mini-stroke"},
+  {a:"TID / tid",d:"Three times per day (ter in die)"},
+  {a:"TM",d:"Tympanic Membrane"},
+  {a:"TPN",d:"Total Parenteral Nutrition"},
+  {a:"UA",d:"Urinalysis"},
+  {a:"UE",d:"Upper Extremities"},
+  {a:"URI",d:"Upper Respiratory Infection"},
+  {a:"US",d:"Ultrasound"},
+  {a:"UTI",d:"Urinary Tract Infection"},
+  {a:"VS",d:"Vital Signs"},
+  {a:"VSS",d:"Vital Signs Stable"},
+  {a:"WBC",d:"White Blood Cell"},
+  {a:"AM/BM/HM/WM",d:"Asian / Black / Hispanic / White Male"},
+  {a:"AF/BF/HF/WF",d:"Asian / Black / Hispanic / White Female"},
+  {a:"WD / WN",d:"Well Developed / Well Nourished"},
+  {a:"WNL",d:"Within Normal Limits"},
+  {a:"WT",d:"Weight"},
+  {a:"YO / y/o",d:"Years Old"},
+  {a:"?",d:"Possible or Suspected"},
+  {a:"+/++",d:"Present / Increased Presence"},
+];
+
+const STORAGE_KEY = "ae_flashcards_v3";
+let progress = {};
+let deck = [], idx = 0, flipped = false, mode = 'flash';
+let quizAnswered = false, qCorrect = 0, qTotal = 0;
+
+function loadProgress(){
+  try { const r=localStorage.getItem(STORAGE_KEY); progress=r?JSON.parse(r){}; } catch(e){ progress={}; }
+  CARDS.forEach(c=>{ if(!progress[c.a]) progress[c.a]='new'; });
+  saveProgress();
+}
+
+function saveProgress(){
+  try { localStorage.setItem(STORAGE_KEY,JSON.stringify(progress)); } catch(e){}
+  updateSaveBadge();
+}
+
+function updateSaveBadge(){
+  const known=Object.values(progress).filter(v=>v==='known').length;
+  document.getElementById('saveBadge').innerHTML=`Progress saved locally &nbsp;·&nbsp; <span>${known}/150 known</span>`;
+}
+
+function updateStats(){
+  const vals=Object.values(progress);
+  document.getElementById('s-new').textContent=vals.filter(v=>v==='new').length;
+  document.getElementById('s-known').textContent=vals.filter(v=>v==='known').length;
+  document.getElementById('s-review').textContent=vals.filter(v=>v==='review').length;
+  const known=vals.filter(v=>v==='known').length;
+  document.getElementById('prog').style.width=Math.round((known/150)*100)+'%';
+  document.getElementById('counter').textContent=deck.length?(idx+1)+' / '+deck.length:'';
+}
+
+function buildDeck(){
+  const f=document.getElementById('deckFilter').value;
+  deck=CARDS.filter(c=>f==='all'||progress[c.a]===f);
+  idx=0; flipped=false; quizAnswered=false; qCorrect=0; qTotal=0;
+  if(mode==='flash') renderCard(); else renderQuiz();
+  updateStats();
+}
+
+function shuffleDeck(){
+  deck=[...deck].sort(()=>Math.random()-0.5);
+  idx=0; flipped=false;
+  if(mode==='flash') renderCard(); else renderQuiz();
+}
+
+function getTagClass(s){ return 'card-tag '+(s==='known'?'tag-known':s==='review'?'tag-review':'tag-new'); }
+function getTagLabel(s){ return s==='known'?'✓ Known':s==='review'?'↻ Review':'● New'; }
+
+function renderCard(){
+  if(!deck.length){
+    document.getElementById('cardAbbrev').textContent='—';
+    document.getElementById('cardDef').textContent='No cards in this filter';
+    document.getElementById('cardTag').textContent='';
+    document.getElementById('counter').textContent=''; updateStats(); return;
+  }
+  const c=deck[idx]; const st=progress[c.a]||'new';
+  document.getElementById('cardAbbrev').textContent=c.a;
+  document.getElementById('cardDef').textContent=c.d;
+  document.getElementById('cardAbSmall').textContent=c.a;
+  const tag=document.getElementById('cardTag');
+  tag.className=getTagClass(st); tag.textContent=getTagLabel(st);
+  document.getElementById('cardInner').classList.remove('flipped');
+  flipped=false;
+  document.getElementById('markControls').style.display='none';
+  document.getElementById('navControls').style.display='flex';
+  updateStats();
+}
+
+function flipCard(){
+  if(mode!=='flash') return;
+  flipped=!flipped;
+  document.getElementById('cardInner').classList.toggle('flipped',flipped);
+  document.getElementById('markControls').style.display=flipped?'flex':'none';
+  document.getElementById('navControls').style.display=flipped?'none':'flex';
+}
+
+function markCard(action){
+  const c=deck[idx];
+  if(action==='known') progress[c.a]='known';
+  else if(action==='review') progress[c.a]='review';
+  saveProgress(); nextCard();
+}
+
+function nextCard(){ idx=idx<deck.length-1?idx+1:0; flipped=false; renderCard(); }
+function prevCard(){ idx=idx>0?idx-1:0; flipped=false; renderCard(); }
+
+function setMode(m){
+  mode=m;
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',['flash','quiz'][i]===m));
+  document.getElementById('flash-area').style.display=m==='flash'?'':'none';
+  document.getElementById('quiz-area').style.display=m==='quiz'?'':'none';
+  idx=0; quizAnswered=false; qCorrect=0; qTotal=0;
+  if(m==='quiz') renderQuiz(); else renderCard();
+}
+
+function renderQuiz(){
+  if(!deck.length) return;
+  const c=deck[idx]; const st=progress[c.a]||'new';
+  quizAnswered=false;
+  document.getElementById('qAbbrev').textContent=c.a;
+  const tag=document.getElementById('qTag');
+  tag.className=getTagClass(st); tag.textContent=getTagLabel(st);
+  document.getElementById('qScore').textContent=qTotal>0?qCorrect+'/'+qTotal+' correct':'';
+  document.getElementById('qNext').style.display='none';
+  const distractors=CARDS.filter(x=>x.a!==c.a).sort(()=>Math.random()-0.5).slice(0,3);
+  const opts=[c,...distractors].sort(()=>Math.random()-0.5);
+  const el=document.getElementById('quizOpts'); el.innerHTML='';
+  opts.forEach(opt=>{
+    const b=document.createElement('button'); b.className='qopt'; b.textContent=opt.d;
+    b.onclick=()=>answerQuiz(opt.a===c.a,b,c); el.appendChild(b);
+  });
+  updateStats();
+}
+
+function answerQuiz(correct,btn,card){
+  if(quizAnswered) return;
+  quizAnswered=true; qTotal++;
+  if(correct){ btn.classList.add('correct'); qCorrect++; progress[card.a]='known'; }
+  else{ btn.classList.add('wrong'); progress[card.a]='review';
+    Array.from(document.getElementById('quizOpts').children).forEach(b=>{if(b.textContent===card.d)b.classList.add('correct');});
+  }
+  saveProgress(); document.getElementById('qNext').style.display='inline-flex'; updateStats();
+}
+
+function nextQuiz(){ if(idx<deck.length-1){idx++;renderQuiz();}else{idx=0;buildDeck();} }
+
+function resetProgress(){
+  if(!confirm('Reset all progress? This cannot be undone.')) return;
+  CARDS.forEach(c=>progress[c.a]='new'); saveProgress(); buildDeck();
+}
+
+loadProgress(); buildDeck();
+</script>
